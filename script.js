@@ -1,23 +1,23 @@
-// IMPORTACIÓN DE LIBRERÍAS Y CONFIGURACIÓN
+// LIBRARY IMPORTS AND CONFIGURATION
 require('dotenv').config({ path: 'token.env' });
 const Telegram = require("node-telegram-bot-api");
 
-// VARIABLES DE CONFIGURACIÓN
+// CONFIGURATION VARIABLES
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const adminId = parseInt(process.env.ADMIN_ID) || 1928649819;
 
-// VALIDACIÓN DEL TOKEN
+// TOKEN VALIDATION
 if (!token || token === "TOKEN") {
-    console.error('❌ ERROR: Token de Telegram no configurado correctamente');
-    console.log('💡 Verifica que tu archivo token.env contenga:');
-    console.log('TELEGRAM_BOT_TOKEN=tu_token_real_aqui');
+    console.error('❌ ERROR: Telegram token not configured correctly');
+    console.log('💡 Check that your token.env file contains:');
+    console.log('TELEGRAM_BOT_TOKEN=your_real_token_here');
     console.log('ADMIN_ID=1928649819');
     process.exit(1);
 }
 
-console.log('✅ Token cargado correctamente desde token.env');
+console.log('✅ Token loaded correctly from token.env');
 
-// CONFIGURACIÓN DEL BOT
+// BOT CONFIGURATION
 const bot = new Telegram(token, { 
     polling: {
         interval: 300,
@@ -28,16 +28,16 @@ const bot = new Telegram(token, {
     }
 });
 
-// CONFIGURACIÓN DE ADMINISTRADOR
-console.log(`✅ Bot configurado. Admin ID: ${adminId}`);
+// ADMINISTRATOR CONFIGURATION
+console.log(`✅ Bot configured. Admin ID: ${adminId}`);
 
-// MANEJO DE ERRORES GLOBALES MEJORADO
+// IMPROVED GLOBAL ERROR HANDLING
 bot.on('polling_error', (error) => {
-    console.error('❌ Error de polling:', error.code);
+    console.error('❌ Polling error:', error.code);
     if (error.code === 'EFATAL') {
-        console.log('🔄 Reintentando conexión en 5 segundos...');
+        console.log('🔄 Retrying connection in 5 seconds...');
         setTimeout(() => {
-            console.log('🔄 Reiniciando bot...');
+            console.log('🔄 Restarting bot...');
             bot.stopPolling();
             setTimeout(() => {
                 bot.startPolling();
@@ -47,7 +47,7 @@ bot.on('polling_error', (error) => {
 });
 
 bot.on('error', (error) => {
-    console.error('❌ Error del bot:', error);
+    console.error('❌ Bot error:', error);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
@@ -56,55 +56,55 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (error) => {
     console.error('❌ Uncaught Exception:', error);
-    console.log('🔄 Intentando continuar...');
+    console.log('🔄 Attempting to continue...');
 });
 
-// ALMACENAMIENTO EN MEMORIA
+// IN-MEMORY STORAGE
 const usuarios = {};
 const usuariosEnEspera = [];
 const reportes = [];
 const usuariosBaneados = new Set();
 
-// MENSAJES DEL BOT
+// BOT MESSAGES
 const mensajes = {
-    bienvenida: (nombre) => `¡Hola, ${nombre} 👋👋! Bienvenido a mi bot de Telegram.
-Funciono como Omegle para que puedas chatear con gente nueva.
-Si tienes dudas, usa el comando /help.`,
-    help: `Estos son todos nuestros comandos:
-/start: Inicia el bot y busca un compañero.
-/stop: Termina el chat con tu compañero actual.
-/report [motivo]: Reporta a tu compañero actual por comportamiento inapropiado.
-Ejemplo: /report Contenido ofensivo`,
-    encontrado: (companero) => `¡Has sido emparejado con un compañero! 🎉
-👤 Usuario: ${companero.nombre}
+    bienvenida: (nombre) => `Hello, ${nombre} 👋👋! Welcome to my Telegram bot.
+I work like Omegle so you can chat with new people.
+If you have questions, use the /help command.`,
+    help: `Here are all our commands:
+/start: Start the bot and find a partner.
+/stop: End the chat with your current partner.
+/report [reason]: Report your current partner for inappropriate behavior.
+Example: /report Offensive content`,
+    encontrado: (companero) => `You've been paired with a partner! 🎉
+👤 User: ${companero.nombre}
 🆔 ID: ${companero.id}
-📝 Para reportar: /report [motivo]
-💬 Puedes empezar a chatear ahora.`,
-    esperando: "Esperando a un compañero...",
-    ya_tienes_companero: "Ya tienes un compañero. Usa /stop si quieres terminar el chat.",
-    chat_terminado: "Has terminado el chat con tu compañero.",
-    companero_termino: "Tu compañero ha terminado el chat.",
-    no_chat_activo: "No tienes ningún chat activo.",
-    mensaje_no_soportado: "[Mensaje no soportado]",
-    error_general: "Ocurrió un error. Por favor, inténtalo de nuevo.",
-    error_envio: "No pude enviar tu mensaje. Tu compañero puede haber salido del chat.",
-    usuario_baneado: "Tu cuenta ha sido suspendida por violar las normas del bot.",
-    reporte_enviado: "✅ Reporte enviado correctamente al administrador.",
-    reporte_sin_motivo: "❌ Debes especificar un motivo para el reporte.\nEjemplo: /report Contenido ofensivo",
-    no_companero_reportar: "❌ No tienes un compañero activo para reportar.",
+📝 To report: /report [reason]
+💬 You can start chatting now.`,
+    esperando: "Waiting for a partner...",
+    ya_tienes_companero: "You already have a partner. Use /stop if you want to end the chat.",
+    chat_terminado: "You have ended the chat with your partner.",
+    companero_termino: "Your partner has ended the chat.",
+    no_chat_activo: "You don't have any active chat.",
+    mensaje_no_soportado: "[Unsupported message]",
+    error_general: "An error occurred. Please try again.",
+    error_envio: "I couldn't send your message. Your partner may have left the chat.",
+    usuario_baneado: "Your account has been suspended for violating bot rules.",
+    reporte_enviado: "✅ Report sent successfully to the administrator.",
+    reporte_sin_motivo: "❌ You must specify a reason for the report.\nExample: /report Offensive content",
+    no_companero_reportar: "❌ You don't have an active partner to report.",
 };
 
-// FUNCIÓN AUXILIAR PARA VERIFICAR TIPOS DE MENSAJE SOPORTADOS
+// HELPER FUNCTION TO VERIFY SUPPORTED MESSAGE TYPES
 function esMensajeSoportado(msg) {
     return !!(msg.text || msg.photo || msg.voice || msg.sticker || msg.document || msg.video || msg.audio || msg.animation || msg.video_note || msg.location || msg.contact);
 }
 
-// COMANDO /start
+// COMMAND /start
 bot.onText(/\/start/, async (msg) => {
     const id = msg.chat.id;
-    const nombre = msg.from.first_name || msg.from.username || "Usuario";
+    const nombre = msg.from.first_name || msg.from.username || "User";
     try {
-        // Verificar si el usuario está baneado
+        // Check if user is banned
         if (usuariosBaneados.has(id)) {
             await bot.sendMessage(id, mensajes.usuario_baneado);
             return;
@@ -117,66 +117,66 @@ bot.onText(/\/start/, async (msg) => {
         const opciones = {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "Buscar compañero", callback_data: "find" }],
+                    [{ text: "Find Partner", callback_data: "find" }],
                 ],
             },
         };
         
         await bot.sendMessage(id, mensajes.bienvenida(nombre), opciones);
     } catch (error) {
-        console.error(`Error en comando /start para usuario ${id}:`, error);
+        console.error(`Error in /start command for user ${id}:`, error);
         try {
             await bot.sendMessage(id, mensajes.error_general);
         } catch (fallbackError) {
-            console.error(`Error crítico enviando mensaje de error:`, fallbackError);
+            console.error(`Critical error sending error message:`, fallbackError);
         }
     }
 });
 
-// COMANDO /help
+// COMMAND /help
 bot.onText(/\/help/, async (msg) => {
     try {
         await bot.sendMessage(msg.chat.id, mensajes.help);
     } catch (error) {
-        console.error(`Error en comando /help para usuario ${msg.chat.id}:`, error);
+        console.error(`Error in /help command for user ${msg.chat.id}:`, error);
     }
 });
 
-// GESTIÓN DE CALLBACK QUERIES (CLICK EN BOTONES) - CORREGIDO
+// CALLBACK QUERIES HANDLING (BUTTON CLICKS) - FIXED
 bot.on("callback_query", async (query) => {
     const id = query.from.id;
     const data = query.data;
     
     try {
-        // Crear usuario si no existe
+        // Create user if doesn't exist
         if (!usuarios[id]) {
-            const nombre = query.from.first_name || query.from.username || "Usuario";
+            const nombre = query.from.first_name || query.from.username || "User";
             usuarios[id] = { id, nombre, companero: null };
         }
         
-        // Lógica para el botón "Buscar compañero"
+        // Logic for "Find Partner" button
         if (data === "find") {
-            // Verificar si el usuario está baneado
+            // Check if user is banned
             if (usuariosBaneados.has(id)) {
                 await bot.answerCallbackQuery(query.id, { text: mensajes.usuario_baneado });
                 return;
             }
             
-            // Si ya tiene un compañero, no hace nada
+            // If already has a partner, do nothing
             if (usuarios[id]?.companero) {
                 await bot.answerCallbackQuery(query.id, { text: mensajes.ya_tienes_companero });
                 return;
             }
             
-            // Si ya está en la cola, no lo agrega de nuevo
+            // If already in queue, don't add again
             if (usuariosEnEspera.includes(id)) {
                 await bot.answerCallbackQuery(query.id, { text: mensajes.esperando });
                 return;
             }
             
-            // LÓGICA CORREGIDA PARA EMPAREJAR
+            // FIXED MATCHING LOGIC
             if (usuariosEnEspera.length > 0) {
-                // Buscar un compañero válido
+                // Find a valid partner
                 let idCompanero = null;
                 while (usuariosEnEspera.length > 0) {
                     const candidato = usuariosEnEspera.shift();
@@ -187,118 +187,118 @@ bot.on("callback_query", async (query) => {
                 }
                 
                 if (idCompanero) {
-                    // Emparejar a los dos usuarios
+                    // Match both users
                     usuarios[id].companero = idCompanero;
                     usuarios[idCompanero].companero = id;
                     
-                    // Enviar mensajes con información del compañero
+                    // Send messages with partner information
                     await Promise.all([
                         bot.sendMessage(id, mensajes.encontrado(usuarios[idCompanero])),
                         bot.sendMessage(idCompanero, mensajes.encontrado(usuarios[id])),
-                        bot.answerCallbackQuery(query.id, { text: "¡Compañero encontrado!" })
+                        bot.answerCallbackQuery(query.id, { text: "Partner found!" })
                     ]);
                 } else {
-                    // No hay compañeros válidos, agregar a la cola
+                    // No valid partners, add to queue
                     usuariosEnEspera.push(id);
-                    await bot.answerCallbackQuery(query.id, { text: "Esperando a un compañero..." });
+                    await bot.answerCallbackQuery(query.id, { text: "Waiting for a partner..." });
                 }
             } else {
-                // Si no hay nadie esperando, se agrega a la cola
+                // If no one is waiting, add to queue
                 usuariosEnEspera.push(id);
-                await bot.answerCallbackQuery(query.id, { text: "Esperando a un compañero..." });
+                await bot.answerCallbackQuery(query.id, { text: "Waiting for a partner..." });
             }
         }
     } catch (error) {
-        console.error(`Error en callback query para usuario ${id}:`, error);
+        console.error(`Error in callback query for user ${id}:`, error);
         try {
             await bot.answerCallbackQuery(query.id, { text: mensajes.error_general });
         } catch (fallbackError) {
-            console.error(`Error crítico en callback query:`, fallbackError);
+            console.error(`Critical error in callback query:`, fallbackError);
         }
     }
 });
 
-// COMANDO /report
+// COMMAND /report
 bot.onText(/\/report(.*)/, async (msg, match) => {
     const id = msg.chat.id;
     const motivo = match[1] ? match[1].trim() : "";
     
     try {
-        // Verificar si el usuario está baneado
+        // Check if user is banned
         if (usuariosBaneados.has(id)) {
             await bot.sendMessage(id, mensajes.usuario_baneado);
             return;
         }
 
-        // Verificar si tiene un compañero para reportar
+        // Check if has a partner to report
         const companeroId = usuarios[id]?.companero;
         if (!companeroId) {
             await bot.sendMessage(id, mensajes.no_companero_reportar);
             return;
         }
 
-        // Verificar si especificó un motivo
+        // Check if specified a reason
         if (!motivo) {
             await bot.sendMessage(id, mensajes.reporte_sin_motivo);
             return;
         }
 
-        // Crear el reporte
+        // Create the report
         const reporte = {
             id: reportes.length + 1,
             fecha: new Date(),
             reportador: {
                 id: id,
-                nombre: usuarios[id]?.nombre || "Usuario desconocido"
+                nombre: usuarios[id]?.nombre || "Unknown user"
             },
             reportado: {
                 id: companeroId,
-                nombre: usuarios[companeroId]?.nombre || "Usuario desconocido"
+                nombre: usuarios[companeroId]?.nombre || "Unknown user"
             },
             motivo: motivo,
-            estado: "pendiente"
+            estado: "pending"
         };
 
-        // Guardar el reporte
+        // Save the report
         reportes.push(reporte);
 
-        // Crear mensaje para el admin
-        const mensajeAdmin = `🚨 NUEVO REPORTE #${reporte.id}
+        // Create message for admin
+        const mensajeAdmin = `🚨 NEW REPORT #${reporte.id}
 
-📅 Fecha: ${reporte.fecha.toLocaleString('es-ES')}
-👤 Reportador: ${reporte.reportador.nombre} (ID: ${reporte.reportador.id})
-🎯 Reportado: ${reporte.reportado.nombre} (ID: ${reporte.reportado.id})
-📝 Motivo: ${reporte.motivo}
+📅 Date: ${reporte.fecha.toLocaleString('en-US')}
+👤 Reporter: ${reporte.reportador.nombre} (ID: ${reporte.reportador.id})
+🎯 Reported: ${reporte.reportado.nombre} (ID: ${reporte.reportado.id})
+📝 Reason: ${reporte.motivo}
 
-Comandos de administrador:
-/ban ${reporte.reportado.id} - Banear usuario
-/unban ${reporte.reportado.id} - Desbanear usuario
-/reports - Ver todos los reportes`;
+Admin commands:
+/ban ${reporte.reportado.id} - Ban user
+/unban ${reporte.reportado.id} - Unban user
+/reports - View all reports`;
 
-        // Enviar reporte al admin
+        // Send report to admin
         await bot.sendMessage(adminId, mensajeAdmin);
         
-        // Confirmar al usuario que reportó
+        // Confirm to reporting user
         await bot.sendMessage(id, mensajes.reporte_enviado);
 
-        console.log(`Nuevo reporte #${reporte.id}: Usuario ${id} reportó a ${companeroId} por: ${motivo}`);
+        console.log(`New report #${reporte.id}: User ${id} reported ${companeroId} for: ${motivo}`);
 
     } catch (error) {
-        console.error(`Error en comando /report para usuario ${id}:`, error);
+        console.error(`Error in /report command for user ${id}:`, error);
         try {
             await bot.sendMessage(id, mensajes.error_general);
         } catch (fallbackError) {
-            console.error(`Error crítico en /report:`, fallbackError);
+            console.error(`Critical error in /report:`, fallbackError);
         }
     }
 });
 
-// COMANDO /stop
+// COMMAND /stop
 bot.onText(/\/stop/, async (msg) => {
     const id = msg.chat.id;
     
     try {
-        // Verificar si el usuario está baneado
+        // Check if user is banned
         if (usuariosBaneados.has(id)) {
             await bot.sendMessage(id, mensajes.usuario_baneado);
             return;
@@ -306,15 +306,15 @@ bot.onText(/\/stop/, async (msg) => {
         
         const companeroId = usuarios[id]?.companero;
         
-        // Si está en la cola de espera, lo saca
+        // If in waiting queue, remove them
         const index = usuariosEnEspera.indexOf(id);
         if (index !== -1) {
             usuariosEnEspera.splice(index, 1);
-            await bot.sendMessage(id, "Has salido de la cola de espera.");
+            await bot.sendMessage(id, "You have left the waiting queue.");
             return;
         }
         
-        // Si tiene un compañero, termina el chat para ambos
+        // If has a partner, end chat for both
         if (companeroId) {
             usuarios[id].companero = null;
             if (usuarios[companeroId]) {
@@ -328,152 +328,152 @@ bot.onText(/\/stop/, async (msg) => {
             
             await Promise.all(promises);
         } else {
-            // Si no tiene compañero ni está en la cola
+            // If no partner and not in queue
             await bot.sendMessage(id, mensajes.no_chat_activo);
         }
     } catch (error) {
-        console.error(`Error en comando /stop para usuario ${id}:`, error);
+        console.error(`Error in /stop command for user ${id}:`, error);
         try {
             await bot.sendMessage(id, mensajes.error_general);
         } catch (fallbackError) {
-            console.error(`Error crítico en /stop:`, fallbackError);
+            console.error(`Critical error in /stop:`, fallbackError);
         }
     }
 });
 
-// COMANDOS DE ADMINISTRADOR
-// Comando /ban para banear usuarios (solo admin)
+// ADMINISTRATOR COMMANDS
+// Command /ban to ban users (admin only)
 bot.onText(/\/ban (\d+)/, async (msg, match) => {
     const adminUserId = msg.chat.id;
     const userToBan = parseInt(match[1]);
     
     if (adminUserId !== adminId) {
-        return; // Solo el admin puede usar este comando
+        return; // Only admin can use this command
     }
     
     try {
         usuariosBaneados.add(userToBan);
         
-        // Desconectar al usuario si está en chat
+        // Disconnect user if in chat
         const companeroId = usuarios[userToBan]?.companero;
         if (companeroId) {
             usuarios[userToBan].companero = null;
             if (usuarios[companeroId]) {
                 usuarios[companeroId].companero = null;
-                await bot.sendMessage(companeroId, "Tu compañero ha sido desconectado.");
+                await bot.sendMessage(companeroId, "Your partner has been disconnected.");
             }
         }
         
-        // Remover de la cola de espera si está ahí
+        // Remove from waiting queue if there
         const index = usuariosEnEspera.indexOf(userToBan);
         if (index > -1) {
             usuariosEnEspera.splice(index, 1);
         }
         
-        await bot.sendMessage(adminId, `✅ Usuario ${userToBan} ha sido baneado correctamente.`);
+        await bot.sendMessage(adminId, `✅ User ${userToBan} has been banned successfully.`);
         
-        // Notificar al usuario baneado
+        // Notify banned user
         try {
             await bot.sendMessage(userToBan, mensajes.usuario_baneado);
         } catch (error) {
-            // El usuario puede haber bloqueado el bot
-            console.log(`No se pudo notificar al usuario baneado ${userToBan}`);
+            // User may have blocked the bot
+            console.log(`Could not notify banned user ${userToBan}`);
         }
         
     } catch (error) {
-        console.error(`Error baneando usuario ${userToBan}:`, error);
-        await bot.sendMessage(adminId, `❌ Error al banear usuario ${userToBan}`);
+        console.error(`Error banning user ${userToBan}:`, error);
+        await bot.sendMessage(adminId, `❌ Error banning user ${userToBan}`);
     }
 });
 
-// Comando /unban para desbanear usuarios (solo admin)
+// Command /unban to unban users (admin only)
 bot.onText(/\/unban (\d+)/, async (msg, match) => {
     const adminUserId = msg.chat.id;
     const userToUnban = parseInt(match[1]);
     
     if (adminUserId !== adminId) {
-        return; // Solo el admin puede usar este comando
+        return; // Only admin can use this command
     }
     
     try {
         if (usuariosBaneados.has(userToUnban)) {
             usuariosBaneados.delete(userToUnban);
-            await bot.sendMessage(adminId, `✅ Usuario ${userToUnban} ha sido desbaneado correctamente.`);
+            await bot.sendMessage(adminId, `✅ User ${userToUnban} has been unbanned successfully.`);
         } else {
-            await bot.sendMessage(adminId, `ℹ️ El usuario ${userToUnban} no estaba baneado.`);
+            await bot.sendMessage(adminId, `ℹ️ User ${userToUnban} was not banned.`);
         }
     } catch (error) {
-        console.error(`Error desbaneando usuario ${userToUnban}:`, error);
-        await bot.sendMessage(adminId, `❌ Error al desbanear usuario ${userToUnban}`);
+        console.error(`Error unbanning user ${userToUnban}:`, error);
+        await bot.sendMessage(adminId, `❌ Error unbanning user ${userToUnban}`);
     }
 });
 
-// Comando /reports para ver todos los reportes (solo admin)
+// Command /reports to view all reports (admin only)
 bot.onText(/\/reports/, async (msg) => {
     const adminUserId = msg.chat.id;
     
     if (adminUserId !== adminId) {
-        return; // Solo el admin puede usar este comando
+        return; // Only admin can use this command
     }
     
     try {
         if (reportes.length === 0) {
-            await bot.sendMessage(adminId, "📝 No hay reportes registrados.");
+            await bot.sendMessage(adminId, "📄 No reports registered.");
             return;
         }
         
-        const ultimosReportes = reportes.slice(-10); // Mostrar últimos 10 reportes
-        let mensaje = "📋 ÚLTIMOS REPORTES:\n\n";
+        const ultimosReportes = reportes.slice(-10); // Show last 10 reports
+        let mensaje = "📋 LATEST REPORTS:\n\n";
         
         for (const reporte of ultimosReportes) {
-            mensaje += `🆔 #${reporte.id} | ${reporte.fecha.toLocaleDateString('es-ES')}
-👤 ${reporte.reportador.nombre} reportó a ${reporte.reportado.nombre}
+            mensaje += `🆔 #${reporte.id} | ${reporte.fecha.toLocaleDateString('en-US')}
+👤 ${reporte.reportador.nombre} reported ${reporte.reportado.nombre}
 📝 ${reporte.motivo}
-🎯 ID Reportado: ${reporte.reportado.id}
+🎯 Reported ID: ${reporte.reportado.id}
 \n`;
         }
         
-        mensaje += `\nTotal de reportes: ${reportes.length}`;
+        mensaje += `\nTotal reports: ${reportes.length}`;
         
         await bot.sendMessage(adminId, mensaje);
         
     } catch (error) {
-        console.error(`Error mostrando reportes:`, error);
-        await bot.sendMessage(adminId, `❌ Error al mostrar reportes`);
+        console.error(`Error showing reports:`, error);
+        await bot.sendMessage(adminId, `❌ Error showing reports`);
     }
 });
 
-// REDIRIGE MENSAJES ENTRE COMPAÑEROS - MEJORADO
+// FORWARD MESSAGES BETWEEN PARTNERS - IMPROVED
 bot.on("message", async (msg) => {
     const id = msg.chat.id;
     
-    // Ignorar mensajes de grupos/canales
+    // Ignore group/channel messages
     if (msg.chat.type !== 'private') return;
     
-    // Ignorar comandos
+    // Ignore commands
     if (msg.text && msg.text.startsWith("/")) return;
     
-    // Verificar si es un mensaje soportado - MEJORADO
+    // Check if supported message - IMPROVED
     if (!esMensajeSoportado(msg)) {
         try {
-            await bot.sendMessage(id, "⚠️ Este tipo de mensaje no puede ser reenviado.");
+            await bot.sendMessage(id, "⚠️ This type of message cannot be forwarded.");
         } catch (error) {
-            console.error('Error enviando mensaje de advertencia:', error);
+            console.error('Error sending warning message:', error);
         }
         return;
     }
 
-    // Verificar si el usuario está baneado
+    // Check if user is banned
     if (usuariosBaneados.has(id)) {
         try {
             await bot.sendMessage(id, mensajes.usuario_baneado);
         } catch (error) {
-            console.error(`Error enviando mensaje de baneo:`, error);
+            console.error(`Error sending ban message:`, error);
         }
         return;
     }
 
-    // Verificar si el usuario existe
+    // Check if user exists
     if (!usuarios[id]) {
         return;
     }
@@ -482,57 +482,57 @@ bot.on("message", async (msg) => {
 
     if (companeroId) {
         try {
-            // Verificar que el compañero aún existe y no está baneado
+            // Check that partner still exists and is not banned
             if (!usuarios[companeroId] || usuariosBaneados.has(companeroId)) {
                 usuarios[id].companero = null;
-                await bot.sendMessage(id, "Tu compañero ya no está disponible. El chat ha terminado.");
+                await bot.sendMessage(id, "Your partner is no longer available. The chat has ended.");
                 return;
             }
             
-            // Reenviar el mensaje
+            // Forward the message
             await bot.copyMessage(companeroId, id, msg.message_id);
-            console.log(`📤 Mensaje reenviado de ${id} a ${companeroId}`);
+            console.log(`📤 Message forwarded from ${id} to ${companeroId}`);
         } catch (error) {
-            console.error(`Error enviando mensaje entre usuarios ${id} y ${companeroId}:`, error);
+            console.error(`Error sending message between users ${id} and ${companeroId}:`, error);
             
             try {
                 await bot.sendMessage(id, mensajes.error_envio);
                 if (usuarios[id]) usuarios[id].companero = null;
                 if (usuarios[companeroId]) usuarios[companeroId].companero = null;
             } catch (fallbackError) {
-                console.error(`Error crítico notificando fallo de envío:`, fallbackError);
+                console.error(`Critical error notifying send failure:`, fallbackError);
             }
         }
     } else {
         try {
-            await bot.sendMessage(id, "No tienes un compañero activo. Usa /start para buscar uno.");
+            await bot.sendMessage(id, "You don't have an active partner. Use /start to find one.");
         } catch (error) {
-            console.error(`Error enviando sugerencia:`, error);
+            console.error(`Error sending suggestion:`, error);
         }
     }
 });
 
-// LIMPIEZA PERIÓDICA MEJORADA
+// IMPROVED PERIODIC CLEANUP
 setInterval(() => {
-    // Limpiar cola de espera de usuarios inexistentes
+    // Clean waiting queue of non-existent users
     for (let i = usuariosEnEspera.length - 1; i >= 0; i--) {
         const userId = usuariosEnEspera[i];
         if (!usuarios[userId] || usuariosBaneados.has(userId)) {
             usuariosEnEspera.splice(i, 1);
-            console.log(`Limpiado usuario ${userId} de la cola de espera`);
+            console.log(`Cleaned user ${userId} from waiting queue`);
         }
     }
     
-    // Limpiar conexiones huérfanas
+    // Clean orphaned connections
     for (const userId in usuarios) {
         const companeroId = usuarios[userId].companero;
         if (companeroId && (!usuarios[companeroId] || usuarios[companeroId].companero !== parseInt(userId))) {
             usuarios[userId].companero = null;
-            console.log(`Limpiada conexión huérfana del usuario ${userId}`);
+            console.log(`Cleaned orphaned connection for user ${userId}`);
         }
     }
-}, 300000); // Cada 5 minutos
+}, 300000); // Every 5 minutes
 
-console.log('🤖 Bot iniciado correctamente ✅');
-console.log('📁 Token cargado desde: token.env');
+console.log('🤖 Bot started successfully ✅');
+console.log('📁 Token loaded from: token.env');
 console.log(`👤 Admin ID: ${adminId}`);
