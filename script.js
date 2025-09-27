@@ -1,4 +1,5 @@
 // IMPORTACIÓN DE LIBRERÍAS Y CONFIGURACIÓN
+require('dotenv').config({ path: 'token.env' });
 const Telegram = require("node-telegram-bot-api");
 
 // VARIABLES DE CONFIGURACIÓN

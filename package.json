@@ -1,11 +1,16 @@
 {
-    "name": "telegram-bot",
+    "name": "telegram-omegle-bot",
     "version": "1.0.0",
+    "description": "Bot de Telegram estilo Omegle",
     "main": "script.js",
     "scripts": {
     "start": "node script.js"
     },
     "dependencies": {
-        "node-telegram-bot-api": "^0.63.0"
+        "node-telegram-bot-api": "^0.64.0",
+        "dotenv": "^16.3.1"
+    },
+    "engines": {
+        "node": ">=18.0.0"
     }
 }
